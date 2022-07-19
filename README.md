@@ -1,5 +1,5 @@
 # door-controller
-Controll the reported room status on the website with the press of a button (or two)
+Control the reported room status on the website with the press of a button (or two)
 
 Control script for a Raspberry Pi unit that lets people in SoHo change the status of the room online.
 
