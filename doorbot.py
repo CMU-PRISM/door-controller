@@ -16,6 +16,7 @@ OPN_PIN = 11
 BSY_PIN = 13
 CLS_PIN = 15
 SITE_URL = 'https://prism.andrew.cmu.edu'
+LOGIN_URL = 'https://prism.andrew.cmu.edu/accounts/login'
 OPEN_URL = 'https://prism.andrew.cmu.edu/door-open'
 BUSY_URL = 'https://prism.andrew.cmu.edu/door-busy'
 CLOSE_URL = 'https://prism.andrew.cmu.edu/door-close'
@@ -64,7 +65,7 @@ while True:
         # Load in new session data
         rqst = requests.session()
         rqst.headers.update({'referer': SITE_URL})
-        rsp = rqst.get(SITE_URL, verify=PRISM_CERTS)
+        rsp = rqst.get(LOGIN_URL, verify=PRISM_CERTS)
         token = rsp.cookies['csrftoken']
 
     # If more than five minutes have passed since last check, get door state again
