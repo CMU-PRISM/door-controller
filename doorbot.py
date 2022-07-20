@@ -6,7 +6,7 @@ import requests, time, os
 import RPi.GPIO as GPIO
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Constants
 TWO_WEEKS_SECONDS = 1210000
