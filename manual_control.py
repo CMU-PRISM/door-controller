@@ -24,10 +24,6 @@ rqst = ''
 rsp = ''
 
 def change_pin(doorstate):
-    # Reset all pins
-    print("OPEN pin lowered")
-    print("BUSY pin lowered")
-    print("CLOSE pin lowered")
     # If doorstate starts with 'OPEN'
     if doorstate[0] == 'O':
         high_pin = 'OPN_PIN'
@@ -37,8 +33,12 @@ def change_pin(doorstate):
     # If doorstate starts with 'CLOSED'
     if doorstate[0] == 'C':
         high_pin = 'CLS_PIN'
+    # Reset all pins
+    print("OPN_PIN lowered")
+    print("BSY_PIN lowered")
+    print("CLS_PIN lowered")
     # Set pin corresponding with doorstate high
-    print("%s set to high" % high_pin)
+    print("%s raised" % high_pin)
 
 # Run forever
 while True:
@@ -62,12 +62,11 @@ while True:
         change_pin(doorState)
 
     # If button pressed, change door state on site (always true for tests)
-    if input("Press button? True/False: ") == "True":
+    if input("\nPress button? y/n: ") == "y":
         # get current door state
         r = rqst.get(SITE_URL, verify=PRISM_CERTS)
         soup = BeautifulSoup(r.content, "html.parser")
         oldState = soup.find(id="door-status").text
-        print("Door was " + oldState)
         # If room is was open: mark busy
         if oldState[0] == "O":
             rqst.post(BUSY_URL, verify=PRISM_CERTS,
@@ -90,5 +89,7 @@ while True:
             rqst.post(CLOSE_URL, verify=PRISM_CERTS,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('CLOSED')
+    else:
+        break
     # Pause before taking new input
     time.sleep(0.25)
