@@ -2,8 +2,11 @@
 
 # Imports
 from bs4 import BeautifulSoup
-import requests, time
+import requests, time, os
 import RPi.GPIO as GPIO
+
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Constants
 TWO_WEEKS_SECONDS = 1210000
@@ -16,7 +19,8 @@ SITE_URL = 'https://prism.andrew.cmu.edu'
 OPEN_URL = 'https://prism.andrew.cmu.edu/door-open'
 BUSY_URL = 'https://prism.andrew.cmu.edu/door-busy'
 CLOSE_URL = 'https://prism.andrew.cmu.edu/door-close'
-PWD = 'SET PWD DURING SETUP'
+with open(os.path.join(BASE_DIR, 'botpassword.txt')) as f:
+    PWD = f.read().strip()
 PRISM_CERTS = 'prismcert.pem'
 
 # Use physical pin numbering
