@@ -3,13 +3,13 @@ from bs4 import BeautifulSoup
 import requests, time, os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Constants
 TWO_WEEKS_SECONDS = 1210000
 FIVE_MINUTES_SECONDS = 300
-LOGIN_URL = 'https://prism.andrew.cmu.edu/accounts/login'
 SITE_URL = 'https://prism.andrew.cmu.edu'
+LOGIN_URL = 'https://prism.andrew.cmu.edu/accounts/login'
 OPEN_URL = 'https://prism.andrew.cmu.edu/door-open'
 BUSY_URL = 'https://prism.andrew.cmu.edu/door-busy'
 CLOSE_URL = 'https://prism.andrew.cmu.edu/door-close'
@@ -49,8 +49,8 @@ while True:
         # Create new session
         rqst = requests.session()
         rqst.headers.update({'referer': SITE_URL})
-        rsp = rqst.get(SITE_URL, verify=PRISM_CERTS)
-        token = rqst.cookies['csrftoken']
+        rsp = rqst.get(LOGIN_URL, verify=PRISM_CERTS)
+        token = rsp.cookies['csrftoken']
 
     # If more than five minutes have passed since last check, get door state again
     if time.time() > door_limit:
