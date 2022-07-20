@@ -40,10 +40,6 @@ rqst = ''
 rsp = ''
 
 def change_pin(doorstate):
-    # Reset all pins
-    GPIO.output(OPN_PIN, GPIO.LOW)
-    GPIO.output(BSY_PIN, GPIO.LOW)
-    GPIO.output(CLS_PIN, GPIO.LOW)
     # If doorstate starts with 'OPEN'
     if doorstate[0] == 'O':
         high_pin = OPN_PIN
@@ -53,6 +49,10 @@ def change_pin(doorstate):
     # If doorstate starts with 'CLOSED'
     if doorstate[0] == 'C':
         high_pin = CLS_PIN
+    # Reset all pins
+    GPIO.output(OPN_PIN, GPIO.LOW)
+    GPIO.output(BSY_PIN, GPIO.LOW)
+    GPIO.output(CLS_PIN, GPIO.LOW)
     # Set pin corresponding with doorstate high
     GPIO.output(high_pin, GPIO.HIGH)
 
