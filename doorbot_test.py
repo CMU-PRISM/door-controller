@@ -88,4 +88,7 @@ while True:
             print("ERROR: Room state unknown!")
             change_pin('CLOSED')
     # Pause before taking new input
+    if input("End? y/n :") == 'y':
+        GPIO.cleanup()
+        break
     time.sleep(0.25)
