@@ -15,11 +15,6 @@ BTN_PIN = 7
 OPN_PIN = 11
 BSY_PIN = 13
 CLS_PIN = 15
-SITE_URL = 'https://prism.andrew.cmu.edu'
-LOGIN_URL = 'https://prism.andrew.cmu.edu/accounts/login'
-OPEN_URL = 'https://prism.andrew.cmu.edu/door-open'
-BUSY_URL = 'https://prism.andrew.cmu.edu/door-busy'
-CLOSE_URL = 'https://prism.andrew.cmu.edu/door-close'
 with open(os.path.join(BASE_DIR, 'botpassword.txt')) as f:
     PWD = f.read().strip()
 PRISM_CERTS = 'prismcert.pem'
@@ -87,8 +82,6 @@ while True:
         else:
             print("ERROR: Room state unknown!")
             change_pin('CLOSED')
-    # Pause before taking new input
-    if input("End? y/n :") == 'y':
-        GPIO.cleanup()
-        break
-    time.sleep(0.25)
+    time.sleep(1)
+
+GPIO.cleanup()
