@@ -34,20 +34,25 @@ door_limit = 0
 rqst = ''
 rsp = ''
 doorState = "CLOSED"
-time_since_last_press = 0
+pause_time = 0.2
 
 def change_pin(doorstate):
     '''
     Changes GPIO pins to HIGH/LOW depending on @doorstate
+
+    :param doorstate: Indicate if room is OPEN, BUSY, or CLOSED
     '''
     # If doorstate starts with 'OPEN'
     if doorstate[0] == 'O':
         high_pin = OPN_PIN
     # If doorstate starts with 'BUSY'
-    if doorstate[0] == 'B':
+    elif doorstate[0] == 'B':
         high_pin = BSY_PIN
     # If doorstate starts with 'CLOSED'
-    if doorstate[0] == 'C':
+    elif doorstate[0] == 'C':
+        high_pin = CLS_PIN
+    # Revert to closed if any other state is passed
+    else:
         high_pin = CLS_PIN
     # Reset all pins
     GPIO.output(OPN_PIN, GPIO.LOW)
@@ -56,40 +61,29 @@ def change_pin(doorstate):
     # Set pin corresponding with doorstate high
     GPIO.output(high_pin, GPIO.HIGH)
 
-def debounce_check(oldTime):
-    '''
-    Makes sure button press is a valid press and not the fault of bouncing
-
-    :param oldTime: Last time the button was pressed
-    :return: True if the current time is greater than @oldTime by at least 100 milliseconds
-    '''
-    millitime = int(round(time.time() * 1000))
-    milliold = int(round(oldTime * 1000))
-    if (millitime - milliold) >= 100:
-        return True
-    else:
-        return False
-
 # Run forever
 while True:
     print("-----")
     print(time.time())
-    print("Button state is: " + str(GPIO.input(BTN_PIN)))
     print("Doorstate is: " + str(doorState))
     # If more than two weeks have passed since starting session, restart session
     if time.time() > session_limit:
         # Set limit to two weeks from now
+        print("Restarting session...")
         session_limit = time.time() + TWO_WEEKS_SECONDS
+        print("Done!")
 
     # If more than five minutes have passed since last check, get door state again
     if time.time() > door_limit:
+        print("Restarting door timer...")
         # Set limit to five minutes from now
         door_limit = time.time() + FIVE_MINUTES_SECONDS
         change_pin(doorState)
+        print("Done!")
 
     # If the button is pressed, start switching the room status
-    if GPIO.input(BTN_PIN) == GPIO.HIGH and debounce_check(time_since_last_press):
-        time_since_last_press = time.time()
+    if GPIO.input(BTN_PIN) == GPIO.HIGH:
+        print("Button pressed!")
         # If room is was open: mark busy
         if doorState[0] == 'O':
             doorState = 'BUSY'
@@ -97,7 +91,7 @@ while True:
             # Only change state once while held
             while GPIO.input(BTN_PIN) == GPIO.HIGH:
                 print("Button is held down!")
-                time.sleep(0.15)
+                time.sleep(pause_time)
         # If room is was busy: mark closed
         elif doorState[0] == 'B':
             doorState = 'CLOSED'
@@ -105,7 +99,7 @@ while True:
             # Only change state once while held
             while GPIO.input(BTN_PIN) == GPIO.HIGH:
                 print("Button is held down!")
-                time.sleep(0.15)
+                time.sleep(pause_time)
         # If room is was closed: mark open
         elif doorState[0] == "C":
             doorState = 'OPEN'
@@ -113,11 +107,11 @@ while True:
             # Only change state once while held
             while GPIO.input(BTN_PIN) == GPIO.HIGH:
                 print("Button is held down!")
-                time.sleep(0.15)
+                time.sleep(pause_time)
         # Unknown, attempt to close door
         else:
             print("ERROR: Room state unknown!")
             change_pin('CLOSED')
-            time.sleep(0.15)
+            time.sleep(pause_time)
 
 GPIO.cleanup()
