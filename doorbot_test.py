@@ -59,6 +59,8 @@ def change_pin(doorstate):
 
 # Run forever
 while True:
+    print("Button state is: " + GPIO.input(BTN_PIN))
+    print("Doorstate is: " + doorState)
     # If more than two weeks have passed since starting session, restart session
     if time.time() > session_limit:
         # Set limit to two weeks from now
