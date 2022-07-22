@@ -34,8 +34,12 @@ door_limit = 0
 rqst = ''
 rsp = ''
 doorState = "CLOSED"
+time_since_last_press = 0
 
 def change_pin(doorstate):
+    '''
+    Changes GPIO pins to HIGH/LOW depending on @doorstate
+    '''
     # If doorstate starts with 'OPEN'
     if doorstate[0] == 'O':
         high_pin = OPN_PIN
@@ -51,6 +55,20 @@ def change_pin(doorstate):
     GPIO.output(CLS_PIN, GPIO.LOW)
     # Set pin corresponding with doorstate high
     GPIO.output(high_pin, GPIO.HIGH)
+
+def debounce_check(oldTime):
+    '''
+    Makes sure button press is a valid press and not the fault of bouncing
+
+    :param oldTime: Last time the button was pressed
+    :return: True if the current time is greater than @oldTime by at least 100 milliseconds
+    '''
+    millitime = int(round(time.time() * 1000))
+    milliold = int(round(oldTime * 1000))
+    if (millitime - milliold) >= 100:
+        return True
+    else:
+        return False
 
 # Run forever
 while True:
@@ -70,7 +88,8 @@ while True:
         change_pin(doorState)
 
     # If the button is pressed, start switching the room status
-    if GPIO.input(BTN_PIN) == GPIO.HIGH:
+    if GPIO.input(BTN_PIN) == GPIO.HIGH and debounce_check(time_since_last_press):
+        time_since_last_press = time.time()
         # If room is was open: mark busy
         if doorState[0] == 'O':
             doorState = 'BUSY'
