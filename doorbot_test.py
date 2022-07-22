@@ -97,6 +97,7 @@ while True:
             # Only change state once while held
             while GPIO.input(BTN_PIN) == GPIO.HIGH:
                 print("Button is held down!")
+                time.sleep(0.15)
         # If room is was busy: mark closed
         elif doorState[0] == 'B':
             doorState = 'CLOSED'
@@ -104,6 +105,7 @@ while True:
             # Only change state once while held
             while GPIO.input(BTN_PIN) == GPIO.HIGH:
                 print("Button is held down!")
+                time.sleep(0.15)
         # If room is was closed: mark open
         elif doorState[0] == "C":
             doorState = 'OPEN'
@@ -111,10 +113,11 @@ while True:
             # Only change state once while held
             while GPIO.input(BTN_PIN) == GPIO.HIGH:
                 print("Button is held down!")
+                time.sleep(0.15)
         # Unknown, attempt to close door
         else:
             print("ERROR: Room state unknown!")
             change_pin('CLOSED')
-    time.sleep(0.05)
+            time.sleep(0.15)
 
 GPIO.cleanup()
