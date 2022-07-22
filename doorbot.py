@@ -36,18 +36,28 @@ GPIO.setup(CLS_PIN, GPIO.OUT)
 # Variables
 session_limit = 0
 door_limit = 0
+pause_time = 0
 rqst = ''
 rsp = ''
 
 def change_pin(doorstate):
+    '''
+    Changes GPIO pins to HIGH/LOW depending on @doorstate
+
+    :param doorstate: Indicate if room is OPEN, BUSY, or CLOSED
+    '''
+    print("Doorstate set to %s" % doorstate)
     # If doorstate starts with 'OPEN'
     if doorstate[0] == 'O':
         high_pin = OPN_PIN
     # If doorstate starts with 'BUSY'
-    if doorstate[0] == 'B':
+    elif doorstate[0] == 'B':
         high_pin = BSY_PIN
     # If doorstate starts with 'CLOSED'
-    if doorstate[0] == 'C':
+    elif doorstate[0] == 'C':
+        high_pin = CLS_PIN
+    # Revert to closed if any other state is passed
+    else:
         high_pin = CLS_PIN
     # Reset all pins
     GPIO.output(OPN_PIN, GPIO.LOW)
@@ -88,21 +98,33 @@ while True:
             rqst.post(BUSY_URL, verify=PRISM_CERTS,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('BUSY')
+            # Only change state once while held
+            while GPIO.input(BTN_PIN) == GPIO.HIGH:
+                time.sleep(pause_time)
         # If room is was busy: mark closed
         elif oldState[0] == 'B':
             rqst.post(CLOSE_URL, verify=PRISM_CERTS,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('CLOSED')
+            # Only change state once while held
+            while GPIO.input(BTN_PIN) == GPIO.HIGH:
+                time.sleep(pause_time)
         # If room is was closed: mark open
         elif oldState[0] == "C":
             rqst.post(OPEN_URL, verify=PRISM_CERTS,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('OPEN')
+            # Only change state once while held
+            while GPIO.input(BTN_PIN) == GPIO.HIGH:
+                time.sleep(pause_time)
         # Unknown, attempt to close door
         else:
             print("ERROR: Room state unknown!")
             rqst.post(CLOSE_URL, verify=PRISM_CERTS,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('CLOSED')
+            # Only change state once while held
+            while GPIO.input(BTN_PIN) == GPIO.HIGH:
+                time.sleep(pause_time)
     # Pause before taking new input
-    time.sleep(0.25)
+    time.sleep(pause_time)
