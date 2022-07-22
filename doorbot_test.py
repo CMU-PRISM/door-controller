@@ -54,6 +54,8 @@ def change_pin(doorstate):
 
 # Run forever
 while True:
+    print("-----")
+    print(time.time())
     print("Button state is: " + str(GPIO.input(BTN_PIN)))
     print("Doorstate is: " + str(doorState))
     # If more than two weeks have passed since starting session, restart session
@@ -71,13 +73,16 @@ while True:
     if GPIO.input(BTN_PIN) == GPIO.HIGH:
         # If room is was open: mark busy
         if doorState[0] == 'O':
-            change_pin('BUSY')
+            doorState = 'BUSY'
+            change_pin(doorState)
         # If room is was busy: mark closed
         elif doorState[0] == 'B':
-            change_pin('CLOSED')
+            doorState = 'CLOSED'
+            change_pin(doorState)
         # If room is was closed: mark open
         elif doorState[0] == "C":
-            change_pin('OPEN')
+            doorState = 'OPEN'
+            change_pin(doorState)
         # Unknown, attempt to close door
         else:
             print("ERROR: Room state unknown!")
