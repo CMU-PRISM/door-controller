@@ -17,7 +17,6 @@ BSY_PIN = 13
 CLS_PIN = 15
 with open(os.path.join(BASE_DIR, 'botpassword.txt')) as f:
     PWD = f.read().strip()
-PRISM_CERTS = 'prismcert.pem'
 
 # Use physical pin numbering
 GPIO.setmode(GPIO.BOARD)

@@ -15,7 +15,6 @@ BUSY_URL = 'https://prism.andrew.cmu.edu/door-busy'
 CLOSE_URL = 'https://prism.andrew.cmu.edu/door-close'
 with open(os.path.join(BASE_DIR, 'botpassword.txt')) as f:
     PWD = f.read().strip()
-PRISM_CERTS = 'prismcert.pem'
 
 # Variables
 session_limit = 0
@@ -49,14 +48,14 @@ while True:
         # Create new session
         rqst = requests.session()
         rqst.headers.update({'referer': SITE_URL})
-        rsp = rqst.get(LOGIN_URL, verify=PRISM_CERTS)
+        rsp = rqst.get(LOGIN_URL)
         token = rsp.cookies['csrftoken']
 
     # If more than five minutes have passed since last check, get door state again
     if time.time() > door_limit:
         # Set limit to five minutes from now
         door_limit = time.time() + FIVE_MINUTES_SECONDS
-        r = rqst.get(SITE_URL, verify=PRISM_CERTS)
+        r = rqst.get(SITE_URL)
         soup = BeautifulSoup(r.content, "html.parser")
         doorState = soup.find(id="door-status").text
         change_pin(doorState)
@@ -64,29 +63,29 @@ while True:
     # If button pressed, change door state on site (always true for tests)
     if input("\nPress button? y/n: ") == "y":
         # get current door state
-        r = rqst.get(SITE_URL, verify=PRISM_CERTS)
+        r = rqst.get(SITE_URL)
         soup = BeautifulSoup(r.content, "html.parser")
         oldState = soup.find(id="door-status").text
         # If room is was open: mark busy
         if oldState[0] == "O":
-            rqst.post(BUSY_URL, verify=PRISM_CERTS,
+            rqst.post(BUSY_URL,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('BUSY')
         # If room is was busy: mark closed
         elif oldState[0] == "B":
-            rqst.post(CLOSE_URL, verify=PRISM_CERTS,
+            rqst.post(CLOSE_URL,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('CLOSED')
         # If room is was closed: mark open
         elif oldState[0] == "C":
-            rqst.post(OPEN_URL, verify=PRISM_CERTS,
+            rqst.post(OPEN_URL,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('OPEN')
         # Unknown, attempt to close door
         else:
             print("INVALID INPUT. INPUT WAS: ")
             print(oldState)
-            rqst.post(CLOSE_URL, verify=PRISM_CERTS,
+            rqst.post(CLOSE_URL,
                 data = {'csrfmiddlewaretoken': token, 'password': PWD})
             change_pin('CLOSED')
     else:
