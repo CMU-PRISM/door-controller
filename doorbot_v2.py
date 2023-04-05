@@ -1,28 +1,198 @@
-# Put this on a rpi, set the username and password for the doorbot account, and have it run as root on startup
+# Put this on a rpi, set the username and password for the
+# doorbot account, and have it run as root on startup
 
-# Imports
+####################### Doorbot V2 #######################
+# V1 had the right idea but it's execution was flawed.   #
+# Chief amoung (us) the problems was the fact that the   #
+# door controller would freeze after an unknown period   #
+# of time, at most one week. Pressumably, decreasing     #
+# the session time drastically would prevent the freeze, #
+# as rebooting the device makes things work as intended. #
+##########################################################
+
+## Pseudocode
+# Run script on device startup
+# on script run:
+#   connect to website and fetch door status
+#   light up corresponding light
+#   set timer vars to 0
+#
+# while true:
+#   if session time > 5 minutes
+#       idle = true
+#       turn lights off
+#   on button press:
+#       if idle:
+#           turn all lights on
+#           connect to website and fetch door status
+#           turn all incorrect lights off
+#           reset idle timer
+#           idle = false
+#       else:
+#           increment door state
+#           reset idle timer
+
+
+## Imports
 from bs4 import BeautifulSoup
 import requests, time, os
 import RPi.GPIO as GPIO
 
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Constants
-TWO_WEEKS_SECONDS = 1210000
-FIVE_MINUTES_SECONDS = 300
+## Constants
+# Longest amount of time (in seconds) the device is able to sit for before going idle
+IDLE_MAX = 300
+# Sets delay (in seconds) when waiting for new button input, helps prevent button bounce
+PAUSE_DELAY = 1
+# Which GPIO pins correspond to which component
 BTN_PIN = 7
 OPN_PIN = 11
 BSY_PIN = 13
 CLS_PIN = 15
+# Website links for initiating sessions and POSTing new door states
 SITE_URL = 'https://prism.andrew.cmu.edu'
-LOGIN_URL = 'https://prism.andrew.cmu.edu/accounts/login'
 OPEN_URL = 'https://prism.andrew.cmu.edu/door-open'
 BUSY_URL = 'https://prism.andrew.cmu.edu/door-busy'
 CLOSE_URL = 'https://prism.andrew.cmu.edu/door-close'
+# Which GPIO pins correspond to which door state
+DOOR_STATES = {
+    "OPEN": OPN_PIN,
+    "BUSY": BSY_PIN,
+    "CLOSED": CLS_PIN,
+    }
+# Which URL gets POSTed, i.e. the status the door should be updated to, given the current state
+CHANGE_STATE = {
+    "OPEN": BUSY_URL,
+    "BUSY": CLOSE_URL,
+    "CLOSED": OPEN_URL,
+    }
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_DIR, 'botpassword.txt')) as f:
     PWD = f.read().strip()
 
+
+## Variables
+# Track when the most recent button interaction was
+most_recent_press = time.time()
+# Stores the page request session
+session = {
+    'rqst': '',
+    'rsp': '',
+    'token': '',
+    }
+
+
+## Helper Functions
+# Main button driver
+def do_button_press(session, idle_time):
+    '''
+    Handle button presses, changing what happens depending on if
+    the device has been idle for some time or not.
+
+    @param session: List containing vars relevant to the current session
+    '''
+    # Check if the most recent press was more than five minutes ago
+    if idle_time > IDLE_MAX:
+        on_idle_press(session)
+    else:
+        on_active_press(session)
+    return
+
+# Idle button press
+def on_idle_press(session):
+    '''
+    When pressed from an idle state, turn on all LEDs,
+    restart the session, grab the door state, then leave only
+    the correct LED powered on
+
+    @param session: Active session information
+    '''
+    # Flash all LEDs to on
+    GPIO.output(OPN_PIN, GPIO.HIGH)
+    GPIO.output(BSY_PIN, GPIO.HIGH)
+    GPIO.output(CLS_PIN, GPIO.HIGH)
+
+    # Load in new session data
+    session['rqst'] = requests.session()
+    session['rqst'].headers.update({'referer': SITE_URL})
+    session['rsp'] = session['rqst'].get(SITE_URL)
+    session['token'] = session['rsp'].cookies['csrftoken']
+
+    # Grab the door state
+    door_state = get_state(session)
+
+    # Set the correct LED to on
+    change_led(door_state)
+
+# Non-idle button press
+def on_active_press(session):
+    '''
+    When pressed from a non idle state, turn off all LEDs,
+    grab the door state, increment the door state, then turn
+    on the correct LED and POST to the website the new status
+
+    @param session: Active session information
+    '''
+    # Flash all LEDs to off
+    GPIO.output(OPN_PIN, GPIO.LOW)
+    GPIO.output(BSY_PIN, GPIO.LOW)
+    GPIO.output(CLS_PIN, GPIO.LOW)
+
+    # Grab the door state
+    door_state = get_state(session)
+
+    # Set the correct LED to on
+    change_led(door_state)
+    send_POST(session, )
+
+    return
+
+# Get door state
+def get_state(session):
+    '''
+    Parse site to find door state
+
+    @param session: Active session information
+    '''
+    r = session['rqst'].get(SITE_URL)
+    soup = BeautifulSoup(r.content, "html.parser")
+    return soup.find(id="door-status").text
+
+# Turn off all LEDs, then turn on the LED corresponding to the state
+def change_led(state):
+    '''
+    Changes LED GPIO pins to HIGH/LOW depending on @door_state, or turns all LEDs off
+
+    @param door_state: which state to set the room to, either OPEN, BUSY, or CLOSED
+    '''
+    # Reset all pins to off
+    GPIO.output(OPN_PIN, GPIO.LOW)
+    GPIO.output(BSY_PIN, GPIO.LOW)
+    GPIO.output(CLS_PIN, GPIO.LOW)
+
+    # Handle the special case where the device has been idle and all pins are to be powered off
+    if state == "IDLE":
+        return None
+
+    # Turn correct pin on
+    GPIO.output(DOOR_STATES[state], GPIO.HIGH)
+
+# Submit POST and update door state on the website
+def send_POST(session, state):
+    '''
+    Depending on @state, send a POST to the website, either opeing,
+    marking as busy, or closing the room.
+
+    @param session: Active session information
+    @param state: which state to set the room to, either OPEN, BUSY, or CLOSED
+    '''
+    session['rqst'].post(CHANGE_STATE[state],
+        data = {'csrfmiddlewaretoken': session['token'], 'password': PWD})
+    return
+
+
+## Startup
 # Use physical pin numbering
 GPIO.setmode(GPIO.BOARD)
 # Set button pin (7) to be an input pin with initial value low (off)
@@ -32,98 +202,23 @@ GPIO.setup(OPN_PIN, GPIO.OUT)
 GPIO.setup(BSY_PIN, GPIO.OUT)
 GPIO.setup(CLS_PIN, GPIO.OUT)
 
-# Variables
-session_limit = 0
-door_limit = 0
-pause_time = 0
-rqst = ''
-rsp = ''
-
-def change_pin(doorstate):
-    '''
-    Changes GPIO pins to HIGH/LOW depending on @doorstate
-
-    :param doorstate: Indicate if room is OPEN, BUSY, or CLOSED
-    '''
-    print("Doorstate set to %s" % doorstate)
-    # If doorstate starts with 'OPEN'
-    if doorstate[0] == 'O':
-        high_pin = OPN_PIN
-    # If doorstate starts with 'BUSY'
-    elif doorstate[0] == 'B':
-        high_pin = BSY_PIN
-    # If doorstate starts with 'CLOSED'
-    elif doorstate[0] == 'C':
-        high_pin = CLS_PIN
-    # Revert to closed if any other state is passed
-    else:
-        high_pin = CLS_PIN
-    # Reset all pins
-    GPIO.output(OPN_PIN, GPIO.LOW)
-    GPIO.output(BSY_PIN, GPIO.LOW)
-    GPIO.output(CLS_PIN, GPIO.LOW)
-    # Set pin corresponding with doorstate high
-    GPIO.output(high_pin, GPIO.HIGH)
 
 # Run forever
 while True:
-    # If more than two weeks have passed since starting session, restart session
-    if time.time() > session_limit:
-        # Set limit to two weeks from now
-        session_limit = time.time() + TWO_WEEKS_SECONDS
-        # Load in new session data
-        rqst = requests.session()
-        rqst.headers.update({'referer': SITE_URL})
-        rsp = rqst.get(LOGIN_URL)
-        token = rsp.cookies['csrftoken']
-
-    # If more than five minutes have passed since last check, get door state again
-    if time.time() > door_limit:
-        # Set limit to five minutes from now
-        door_limit = time.time() + FIVE_MINUTES_SECONDS
-        r = rqst.get(SITE_URL)
-        soup = BeautifulSoup(r.content, "html.parser")
-        doorState = soup.find(id="door-status").text
-        change_pin(doorState)
-
-    # If the button is pressed, start switching the room status
+    # Only act on button press
     if GPIO.input(BTN_PIN) == GPIO.HIGH:
-        # get current door state
-        r = rqst.get(SITE_URL)
-        soup = BeautifulSoup(r.content, "html.parser")
-        oldState = soup.find(id="door-status").text
-        # If room is was open: mark busy
-        if oldState[0] == 'O':
-            rqst.post(BUSY_URL,
-                data = {'csrfmiddlewaretoken': token, 'password': PWD})
-            change_pin('BUSY')
-            # Only change state once while held
-            while GPIO.input(BTN_PIN) == GPIO.HIGH:
-                time.sleep(pause_time)
-        # If room is was busy: mark closed
-        elif oldState[0] == 'B':
-            rqst.post(CLOSE_URL,
-                data = {'csrfmiddlewaretoken': token, 'password': PWD})
-            change_pin('CLOSED')
-            # Only change state once while held
-            while GPIO.input(BTN_PIN) == GPIO.HIGH:
-                time.sleep(pause_time)
-        # If room is was closed: mark open
-        elif oldState[0] == "C":
-            rqst.post(OPEN_URL,
-                data = {'csrfmiddlewaretoken': token, 'password': PWD})
-            change_pin('OPEN')
-            # Only change state once while held
-            while GPIO.input(BTN_PIN) == GPIO.HIGH:
-                time.sleep(pause_time)
-        # Unknown, attempt to close door
-        else:
-            print("ERROR: Room state unknown!")
-            rqst.post(CLOSE_URL,
-                data = {'csrfmiddlewaretoken': token, 'password': PWD})
-            change_pin('CLOSED')
-            # Only change state once while held
-            while GPIO.input(BTN_PIN) == GPIO.HIGH:
-                time.sleep(pause_time)
+        do_button_press(session, idle_time)
+        most_recent_press = time.time()
+        idle_time = 0
+        # Wait while the button is held down, after running a button press
+        while GPIO.input(BTN_PIN) == GPIO.HIGH:
+            time.sleep(PAUSE_DELAY)
+
+    # Between presses, keep track of the time since the last button press
+    idle_time = time.time() - most_recent_press
+
+    if idle_time > IDLE_MAX:
+        change_led("IDLE")
+
     # Pause before taking new input
-    time.sleep(pause_time)
+    time.sleep(PAUSE_DELAY)
