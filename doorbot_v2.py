@@ -18,19 +18,19 @@
 #   set timer vars to 0
 #
 # while true:
-#   if session time > 5 minutes
+#   if idle time > 5 minutes
 #       idle = true
-#       turn lights off
+#       turn LEDs off
 #   on button press:
 #       if idle:
-#           turn all lights on
+#           turn all LEDs on
 #           connect to website and fetch door status
-#           turn all incorrect lights off
-#           reset idle timer
-#           idle = false
+#           turn all incorrect LEDs off
 #       else:
 #           increment door state
-#           reset idle timer
+#           toggle correct LED on
+#       idle time = 0
+#       reset idle timer
 
 
 ## Imports
@@ -209,7 +209,6 @@ while True:
     if GPIO.input(BTN_PIN) == GPIO.HIGH:
         do_button_press(session, idle_time)
         most_recent_press = time.time()
-        idle_time = 0
         # Wait while the button is held down, after running a button press
         while GPIO.input(BTN_PIN) == GPIO.HIGH:
             time.sleep(PAUSE_DELAY)
